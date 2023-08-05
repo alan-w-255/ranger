@@ -12,6 +12,7 @@ from __future__ import (absolute_import, division, print_function)
 
 import curses
 import os
+import subprocess
 from os import getuid, readlink
 from pwd import getpwuid
 from grp import getgrgid
@@ -223,6 +224,34 @@ class StatusBar(Widget):  # pylint: disable=too-many-instance-attributes
                     directory.vcs.rootvcs.head['summary'][:summary_length],
                     'vcscommit'
                 )
+        if target.image:
+            info = self._get_image_info(target)
+            if info:
+                left.add_space()
+                left.add(info, 'imageinfo')
+
+    def _get_image_info(self, target):
+        info = None
+        if not target.image:
+            return
+        try:
+            # call identify to get image info
+            info = subprocess.check_output(
+                ['identify', target.path],
+                stderr=subprocess.STDOUT
+            ).decode('utf-8').strip()
+            split = info.split()
+            if len(split) < 6:
+                return
+            image_type = split[1]
+            resolusion = split[2]
+            bitdepth = split[4]
+            colorspace = split[5]
+            info = f'{image_type} {resolusion} {bitdepth} {colorspace}'
+        except OSError:
+            return
+        if info:
+            return info
 
     def _get_owner(self, target):
         uid = target.stat.st_uid
